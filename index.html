@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Card Game Company</title>
+
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    .flip-card {
+      perspective: 1000px;
+    }
+    .flip-inner {
+      transition: transform 0.6s;
+      transform-style: preserve-3d;
+    }
+    .flip-card.flipped .flip-inner {
+      transform: rotateY(180deg);
+    }
+    .flip-front, .flip-back {
+      backface-visibility: hidden;
+    }
+    .flip-back {
+      transform: rotateY(180deg);
+    }
+  </style>
+</head>
+
+<body class="bg-gray-900 text-white">
+
+  <!-- NAVBAR -->
+  <nav class="p-4 bg-gray-800 shadow-lg flex justify-between items-center">
+    <h1 class="text-xl font-bold">CardGame Co.</h1>
+    <button class="md:hidden" onclick="toggleMenu()">☰</button>
+
+    <ul id="menu" class="hidden md:flex gap-6 text-lg">
+      <li><a href="#games" class="hover:text-yellow-300">Games</a></li>
+      <li><a href="#pricing" class="hover:text-yellow-300">Pricing</a></li>
+      <li><a href="#contact" class="hover:text-yellow-300">Contact</a></li>
+    </ul>
+  </nav>
+
+  <!-- HERO SECTION -->
+  <section class="text-center py-20 bg-gradient-to-b from-gray-900 to-gray-800">
+    <h2 class="text-5xl font-bold mb-4">Play. Win. Repeat.</h2>
+    <p class="text-gray-300 text-xl mb-8">Premium digital + physical card games crafted for fun.</p>
+    <button class="bg-yellow-400 text-black px-6 py-3 rounded-lg text-xl font-semibold hover:bg-yellow-300">
+      Explore Games
+    </button>
+  </section>
+
+  <!-- GAME GRID SECTION -->
+  <section id="games" class="p-10">
+    <h3 class="text-3xl font-bold mb-6">Our Card Games</h3>
+    
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+      
+      <!-- CARD 1 With Flip -->
+      <div class="flip-card bg-gray-800 rounded-xl p-4 cursor-pointer" onclick="flip(this)">
+        <div class="flip-inner relative w-full h-64">
+
+          <div class="flip-front absolute w-full h-full bg-gradient-to-br from-purple-600 to-indigo-700 rounded-xl flex items-center justify-center text-2xl font-bold">
+            Rummy
+          </div>
+
+          <div class="flip-back absolute w-full h-full bg-gray-700 rounded-xl flex items-center justify-center text-xl">
+            Classic 13-card strategy game.
+          </div>
+
+        </div>
+      </div>
+
+      <!-- CARD 2 -->
+      <div class="bg-gray-800 rounded-xl p-6 text-center">
+        <h4 class="text-2xl font-bold mb-4">Teen Patti</h4>
+        <p class="text-gray-400">Fast paced 3-card Indian card game.</p>
+      </div>
+
+      <!-- CARD 3 -->
+      <div class="bg-gray-800 rounded-xl p-6 text-center">
+        <h4 class="text-2xl font-bold mb-4">Poker</h4>
+        <p class="text-gray-400">Texas Hold’em, Omaha and more.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- PRICING SECTION -->
+  <section id="pricing" class="p-10 bg-gray-800">
+    <h3 class="text-3xl font-bold mb-8">Pricing</h3>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+      
+      <div class="bg-gray-900 p-6 rounded-xl text-center">
+        <h4 class="text-2xl font-bold mb-4">Basic</h4>
+        <p class="text-4xl font-bold text-yellow-400 mb-4">₹499</p>
+        <p>Single Game Access</p>
+      </div>
+
+      <div class="bg-yellow-400 text-black p-6 rounded-xl text-center shadow-xl scale-105">
+        <h4 class="text-2xl font-bold mb-4">Premium</h4>
+        <p class="text-4xl font-bold mb-4">₹999</p>
+        <p>All Games + Updates</p>
+      </div>
+
+      <div class="bg-gray-900 p-6 rounded-xl text-center">
+        <h4 class="text-2xl font-bold mb-4">Enterprise</h4>
+        <p class="text-4xl font-bold text-yellow-400 mb-4">Custom</p>
+        <p>Branding + Custom Games</p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- CONTACT SECTION -->
+  <section id="contact" class="p-10">
+    <h3 class="text-3xl font-bold mb-6">Contact Us</h3>
+
+    <form class="max-w-lg mx-auto bg-gray-800 p-6 rounded-xl">
+      <input type="text" placeholder="Your Name" class="w-full p-3 rounded mb-4 bg-gray-900 border border-gray-700">
+      <input type="email" placeholder="Your Email" class="w-full p-3 rounded mb-4 bg-gray-900 border border-gray-700">
+      <textarea placeholder="Message" class="w-full p-3 rounded mb-4 bg-gray-900 border border-gray-700"></textarea>
+      <button class="bg-yellow-400 text-black px-6 py-3 rounded-lg w-full text-lg font-semibold hover:bg-yellow-300">
+        Send Message
+      </button>
+    </form>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="text-center p-4 bg-gray-900 text-gray-400">
+    © 2025 CardGame Co. All Rights Reserved.
+  </footer>
+
+  <!-- JS -->
+  <script>
+    function toggleMenu() {
+      document.getElementById("menu").classList.toggle("hidden");
+    }
+    function flip(card) {
+      card.classList.toggle("flipped");
+    }
+  </script>
+
+</body>
+</html>
