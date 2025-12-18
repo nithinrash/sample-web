@@ -3,107 +3,190 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ESP32 Controller</title>
+    <title>ESP32 Manager</title>
     <style>
-        body { font-family: sans-serif; text-align: center; padding: 20px; }
-        button { padding: 15px 30px; font-size: 18px; margin: 10px; cursor: pointer; }
-        .btn-connect { background-color: #007bff; color: white; border: none; border-radius: 5px; }
-        .btn-send { background-color: #28a745; color: white; border: none; border-radius: 5px; }
-        #status { margin-top: 20px; color: #555; }
-        #controls { display: none; margin-top: 20px; border-top: 1px solid #ccc; padding-top: 20px; }
-        #device-list { margin-bottom: 20px; }
-        .saved-device-btn { display: block; width: 100%; max-width: 300px; margin: 5px auto; padding: 10px; background: #eee; border: 1px solid #ddd; }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; text-align: center; padding: 20px; background: #f0f2f5; }
+        
+        /* Card Style for Saved Devices */
+        .device-card {
+            background: white; border-radius: 12px; padding: 15px; margin: 10px auto;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1); max-width: 350px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .device-info { text-align: left; }
+        .device-name { font-weight: bold; font-size: 16px; color: #333; }
+        .device-id { font-size: 12px; color: #888; }
+        
+        button { cursor: pointer; border: none; font-size: 14px; font-weight: bold; border-radius: 6px; }
+        
+        /* Connect Button (Green) */
+        .btn-connect { background: #28a745; color: white; padding: 10px 15px; }
+        
+        /* Scan Button (Blue) */
+        .btn-scan { background: #007bff; color: white; padding: 15px 30px; font-size: 16px; border-radius: 50px; margin-top: 20px; box-shadow: 0 4px 10px rgba(0,123,255,0.3); }
+
+        /* Controls Area */
+        #controls { display: none; background: white; padding: 20px; border-radius: 15px; margin-top: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        input { padding: 12px; width: 60%; border: 1px solid #ccc; border-radius: 6px; margin-right: 5px; }
+        .btn-send { background: #007bff; color: white; padding: 12px 20px; }
+        
+        #status { margin-top: 15px; color: #666; font-size: 14px; }
     </style>
 </head>
 <body>
 
-    <h2>ESP32 Manager</h2>
+    <h2>My Devices</h2>
 
-    <div id="device-list"></div>
-
-    <button id="scanBtn" class="btn-connect">Scan & Connect</button>
+    <div id="saved-list">
+        </div>
     
-    <div id="status">Status: Ready</div>
+    <div id="empty-msg" style="color:#888; margin: 20px; display:none;">
+        No saved devices yet.<br>Scan once to save.
+    </div>
+
+    <button id="scanBtn" class="btn-scan">+ Add New Device</button>
+
+    <div id="status">Ready</div>
 
     <div id="controls">
-        <input type="text" id="cmdInput" placeholder="Command (e.g. LED_ON)" style="padding:10px; width:60%;">
-        <button id="sendBtn" class="btn-send">Send</button>
+        <h3>Connected!</h3>
+        <div style="display:flex; justify-content:center;">
+            <input type="text" id="cmdInput" placeholder="Command (e.g. LED_ON)">
+            <button id="sendBtn" class="btn-send">Send</button>
+        </div>
         <br>
-        <button onclick="window.location.reload()">Disconnect</button>
+        <button onclick="disconnect()" style="color:red; background:none;">Disconnect</button>
     </div>
 
     <script>
-        // UUIDs MUST MATCH YOUR ESP32 CODE
         const SERVICE_UUID = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
-        const RX_UUID      = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';
+        const RX_UUID = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';
 
-        const scanBtn = document.getElementById('scanBtn');
+        let currentDevice = null;
+        let rxChar = null;
+
+        const savedListDiv = document.getElementById('saved-list');
+        const emptyMsg = document.getElementById('empty-msg');
         const statusDiv = document.getElementById('status');
         const controlsDiv = document.getElementById('controls');
-        const deviceListDiv = document.getElementById('device-list');
-        let rxChar;
+        const scanBtn = document.getElementById('scanBtn');
 
-        // 1. CHECK BROWSER SUPPORT
-        if (!navigator.bluetooth) {
-            statusDiv.innerHTML = "<b style='color:red'>Error: Web Bluetooth is not supported in this browser.</b><br>Use Chrome (Android/PC) or Bluefy (iOS). Ensure you are using HTTPS.";
-            scanBtn.disabled = true;
-        }
-
-        // 2. LOAD SAVED DEVICES (If supported)
-        // We use a separate check here so the app doesn't crash if getDevices is missing
-        if (navigator.bluetooth && navigator.bluetooth.getDevices) {
-            navigator.bluetooth.getDevices().then(devices => {
-                devices.forEach(device => {
-                    const btn = document.createElement('button');
-                    btn.className = "saved-device-btn";
-                    btn.innerText = "Re-connect: " + (device.name || "Unknown");
-                    btn.onclick = () => connectToDevice(device);
-                    deviceListDiv.appendChild(btn);
-                });
-            });
-        }
-
-        // 3. SCAN NEW DEVICE
-        scanBtn.onclick = async () => {
-            try {
-                statusDiv.innerText = "Scanning...";
-                const device = await navigator.bluetooth.requestDevice({
-                    filters: [{ services: [SERVICE_UUID] }]
-                });
-                connectToDevice(device);
-            } catch (error) {
-                statusDiv.innerText = "Scan cancelled or failed: " + error;
+        // --- 1. STARTUP: GET ALLOWED DEVICES ---
+        window.addEventListener('load', async () => {
+            // Check if browser supports the "List" feature
+            if (navigator.bluetooth && navigator.bluetooth.getDevices) {
+                const devices = await navigator.bluetooth.getDevices();
+                
+                if (devices.length > 0) {
+                    // We found permitted devices! Show them.
+                    emptyMsg.style.display = 'none';
+                    devices.forEach(renderDeviceCard);
+                } else {
+                    // List is empty
+                    emptyMsg.style.display = 'block';
+                }
+            } else {
+                statusDiv.innerText = "Note: This browser cannot save devices.";
             }
-        };
+        });
 
-        // 4. CONNECT LOGIC
+        // --- 2. RENDER THE LIST ---
+        function renderDeviceCard(device) {
+            // Create a nice card for the device
+            const card = document.createElement('div');
+            card.className = 'device-card';
+            
+            card.innerHTML = `
+                <div class="device-info">
+                    <div class="device-name">${device.name || "Unnamed Device"}</div>
+                    <div class="device-id">ID: ...${device.id.slice(-4)}</div>
+                </div>
+                <button class="btn-connect">Connect</button>
+            `;
+
+            // Make the "Connect" button work
+            const connectBtn = card.querySelector('.btn-connect');
+            connectBtn.onclick = () => connectToDevice(device);
+
+            savedListDiv.appendChild(card);
+        }
+
+        // --- 3. CONNECT TO A DEVICE ---
         async function connectToDevice(device) {
             try {
-                statusDiv.innerText = "Connecting to " + device.name + "...";
+                statusDiv.innerText = `Connecting to ${device.name}...`;
+                
+                device.addEventListener('gattserverdisconnected', onDisconnect);
+
+                // Connect to GATT Server
                 const server = await device.gatt.connect();
                 const service = await server.getPrimaryService(SERVICE_UUID);
                 rxChar = await service.getCharacteristic(RX_UUID);
 
-                // Success UI
-                statusDiv.innerText = "Connected!";
-                scanBtn.style.display = 'none';
-                deviceListDiv.style.display = 'none';
+                // UI Success State
+                currentDevice = device;
                 controlsDiv.style.display = 'block';
+                savedListDiv.style.display = 'none';
+                scanBtn.style.display = 'none';
+                emptyMsg.style.display = 'none';
+                statusDiv.innerText = "Status: Online";
 
             } catch (error) {
-                statusDiv.innerText = "Connection Failed: " + error;
+                console.error(error);
+                statusDiv.innerText = "Connection Failed. Is it powered on?";
             }
         }
 
-        // 5. SEND COMMAND
-        document.getElementById('sendBtn').onclick = async () => {
-            const val = document.getElementById('cmdInput').value;
-            if (rxChar && val) {
-                const encoder = new TextEncoder();
-                await rxChar.writeValue(encoder.encode(val + "\n"));
-                document.getElementById('cmdInput').value = "";
+        // --- 4. SCAN FOR NEW DEVICES ---
+        scanBtn.onclick = async () => {
+            try {
+                // This triggers the system picker
+                const device = await navigator.bluetooth.requestDevice({
+                    filters: [{ services: [SERVICE_UUID] }]
+                });
+                
+                // Connect immediately
+                await connectToDevice(device);
+
+                // Add to list for next time (reload list logic simplified)
+                // Note: We don't need to manually add to list; 
+                // the browser adds it to getDevices() automatically after connection.
+                
+            } catch (error) {
+                statusDiv.innerText = "Scan cancelled.";
             }
         };
+
+        // --- 5. SEND COMMAND ---
+        document.getElementById('sendBtn').onclick = async () => {
+            const input = document.getElementById('cmdInput');
+            if (rxChar && input.value) {
+                const encoder = new TextEncoder();
+                await rxChar.writeValue(encoder.encode(input.value + "\n"));
+                input.value = "";
+            }
+        };
+
+        // --- 6. DISCONNECT ---
+        function disconnect() {
+            if (currentDevice && currentDevice.gatt.connected) {
+                currentDevice.gatt.disconnect();
+            }
+        }
+
+        function onDisconnect() {
+            statusDiv.innerText = "Disconnected.";
+            controlsDiv.style.display = 'none';
+            savedListDiv.style.display = 'block'; // Show list again
+            scanBtn.style.display = 'inline-block';
+            
+            // Re-check the list to ensure this device is shown
+            if (savedListDiv.innerHTML === "") {
+                 navigator.bluetooth.getDevices().then(devices => {
+                    devices.forEach(renderDeviceCard);
+                 });
+            }
+        }
     </script>
 </body>
 </html>
