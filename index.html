@@ -1,146 +1,109 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Card Game Company</title>
-
-  <!-- Tailwind CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-
-  <style>
-    .flip-card {
-      perspective: 1000px;
-    }
-    .flip-inner {
-      transition: transform 0.6s;
-      transform-style: preserve-3d;
-    }
-    .flip-card.flipped .flip-inner {
-      transform: rotateY(180deg);
-    }
-    .flip-front, .flip-back {
-      backface-visibility: hidden;
-    }
-    .flip-back {
-      transform: rotateY(180deg);
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 Controller</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 20px; }
+        button { padding: 15px 30px; font-size: 18px; margin: 10px; cursor: pointer; }
+        .btn-connect { background-color: #007bff; color: white; border: none; border-radius: 5px; }
+        .btn-send { background-color: #28a745; color: white; border: none; border-radius: 5px; }
+        #status { margin-top: 20px; color: #555; }
+        #controls { display: none; margin-top: 20px; border-top: 1px solid #ccc; padding-top: 20px; }
+        #device-list { margin-bottom: 20px; }
+        .saved-device-btn { display: block; width: 100%; max-width: 300px; margin: 5px auto; padding: 10px; background: #eee; border: 1px solid #ddd; }
+    </style>
 </head>
+<body>
 
-<body class="bg-gray-900 text-white">
+    <h2>ESP32 Manager</h2>
 
-  <!-- NAVBAR -->
-  <nav class="p-4 bg-gray-800 shadow-lg flex justify-between items-center">
-    <h1 class="text-xl font-bold">CardGame Co.</h1>
-    <button class="md:hidden" onclick="toggleMenu()">☰</button>
+    <div id="device-list"></div>
 
-    <ul id="menu" class="hidden md:flex gap-6 text-lg">
-      <li><a href="#games" class="hover:text-yellow-300">Games</a></li>
-      <li><a href="#pricing" class="hover:text-yellow-300">Pricing</a></li>
-      <li><a href="#contact" class="hover:text-yellow-300">Contact</a></li>
-    </ul>
-  </nav>
-
-  <!-- HERO SECTION -->
-  <section class="text-center py-20 bg-gradient-to-b from-gray-900 to-gray-800">
-    <h2 class="text-5xl font-bold mb-4">Play. Win. Repeat.</h2>
-    <p class="text-gray-300 text-xl mb-8">Premium digital + physical card games crafted for fun.</p>
-    <button class="bg-yellow-400 text-black px-6 py-3 rounded-lg text-xl font-semibold hover:bg-yellow-300">
-      Explore Games
-    </button>
-  </section>
-
-  <!-- GAME GRID SECTION -->
-  <section id="games" class="p-10">
-    <h3 class="text-3xl font-bold mb-6">Our Card Games</h3>
+    <button id="scanBtn" class="btn-connect">Scan & Connect</button>
     
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-      
-      <!-- CARD 1 With Flip -->
-      <div class="flip-card bg-gray-800 rounded-xl p-4 cursor-pointer" onclick="flip(this)">
-        <div class="flip-inner relative w-full h-64">
+    <div id="status">Status: Ready</div>
 
-          <div class="flip-front absolute w-full h-full bg-gradient-to-br from-purple-600 to-indigo-700 rounded-xl flex items-center justify-center text-2xl font-bold">
-            Rummy
-          </div>
-
-          <div class="flip-back absolute w-full h-full bg-gray-700 rounded-xl flex items-center justify-center text-xl">
-            Classic 13-card strategy game.
-          </div>
-
-        </div>
-      </div>
-
-      <!-- CARD 2 -->
-      <div class="bg-gray-800 rounded-xl p-6 text-center">
-        <h4 class="text-2xl font-bold mb-4">Teen Patti</h4>
-        <p class="text-gray-400">Fast paced 3-card Indian card game.</p>
-      </div>
-
-      <!-- CARD 3 -->
-      <div class="bg-gray-800 rounded-xl p-6 text-center">
-        <h4 class="text-2xl font-bold mb-4">Poker</h4>
-        <p class="text-gray-400">Texas Hold’em, Omaha and more.</p>
-      </div>
-
+    <div id="controls">
+        <input type="text" id="cmdInput" placeholder="Command (e.g. LED_ON)" style="padding:10px; width:60%;">
+        <button id="sendBtn" class="btn-send">Send</button>
+        <br>
+        <button onclick="window.location.reload()">Disconnect</button>
     </div>
-  </section>
 
-  <!-- PRICING SECTION -->
-  <section id="pricing" class="p-10 bg-gray-800">
-    <h3 class="text-3xl font-bold mb-8">Pricing</h3>
+    <script>
+        // UUIDs MUST MATCH YOUR ESP32 CODE
+        const SERVICE_UUID = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
+        const RX_UUID      = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-      
-      <div class="bg-gray-900 p-6 rounded-xl text-center">
-        <h4 class="text-2xl font-bold mb-4">Basic</h4>
-        <p class="text-4xl font-bold text-yellow-400 mb-4">₹499</p>
-        <p>Single Game Access</p>
-      </div>
+        const scanBtn = document.getElementById('scanBtn');
+        const statusDiv = document.getElementById('status');
+        const controlsDiv = document.getElementById('controls');
+        const deviceListDiv = document.getElementById('device-list');
+        let rxChar;
 
-      <div class="bg-yellow-400 text-black p-6 rounded-xl text-center shadow-xl scale-105">
-        <h4 class="text-2xl font-bold mb-4">Premium</h4>
-        <p class="text-4xl font-bold mb-4">₹999</p>
-        <p>All Games + Updates</p>
-      </div>
+        // 1. CHECK BROWSER SUPPORT
+        if (!navigator.bluetooth) {
+            statusDiv.innerHTML = "<b style='color:red'>Error: Web Bluetooth is not supported in this browser.</b><br>Use Chrome (Android/PC) or Bluefy (iOS). Ensure you are using HTTPS.";
+            scanBtn.disabled = true;
+        }
 
-      <div class="bg-gray-900 p-6 rounded-xl text-center">
-        <h4 class="text-2xl font-bold mb-4">Enterprise</h4>
-        <p class="text-4xl font-bold text-yellow-400 mb-4">Custom</p>
-        <p>Branding + Custom Games</p>
-      </div>
+        // 2. LOAD SAVED DEVICES (If supported)
+        // We use a separate check here so the app doesn't crash if getDevices is missing
+        if (navigator.bluetooth && navigator.bluetooth.getDevices) {
+            navigator.bluetooth.getDevices().then(devices => {
+                devices.forEach(device => {
+                    const btn = document.createElement('button');
+                    btn.className = "saved-device-btn";
+                    btn.innerText = "Re-connect: " + (device.name || "Unknown");
+                    btn.onclick = () => connectToDevice(device);
+                    deviceListDiv.appendChild(btn);
+                });
+            });
+        }
 
-    </div>
-  </section>
+        // 3. SCAN NEW DEVICE
+        scanBtn.onclick = async () => {
+            try {
+                statusDiv.innerText = "Scanning...";
+                const device = await navigator.bluetooth.requestDevice({
+                    filters: [{ services: [SERVICE_UUID] }]
+                });
+                connectToDevice(device);
+            } catch (error) {
+                statusDiv.innerText = "Scan cancelled or failed: " + error;
+            }
+        };
 
-  <!-- CONTACT SECTION -->
-  <section id="contact" class="p-10">
-    <h3 class="text-3xl font-bold mb-6">Contact Us</h3>
+        // 4. CONNECT LOGIC
+        async function connectToDevice(device) {
+            try {
+                statusDiv.innerText = "Connecting to " + device.name + "...";
+                const server = await device.gatt.connect();
+                const service = await server.getPrimaryService(SERVICE_UUID);
+                rxChar = await service.getCharacteristic(RX_UUID);
 
-    <form class="max-w-lg mx-auto bg-gray-800 p-6 rounded-xl">
-      <input type="text" placeholder="Your Name" class="w-full p-3 rounded mb-4 bg-gray-900 border border-gray-700">
-      <input type="email" placeholder="Your Email" class="w-full p-3 rounded mb-4 bg-gray-900 border border-gray-700">
-      <textarea placeholder="Message" class="w-full p-3 rounded mb-4 bg-gray-900 border border-gray-700"></textarea>
-      <button class="bg-yellow-400 text-black px-6 py-3 rounded-lg w-full text-lg font-semibold hover:bg-yellow-300">
-        Send Message
-      </button>
-    </form>
-  </section>
+                // Success UI
+                statusDiv.innerText = "Connected!";
+                scanBtn.style.display = 'none';
+                deviceListDiv.style.display = 'none';
+                controlsDiv.style.display = 'block';
 
-  <!-- FOOTER -->
-  <footer class="text-center p-4 bg-gray-900 text-gray-400">
-    © 2025 CardGame Co. All Rights Reserved.
-  </footer>
+            } catch (error) {
+                statusDiv.innerText = "Connection Failed: " + error;
+            }
+        }
 
-  <!-- JS -->
-  <script>
-    function toggleMenu() {
-      document.getElementById("menu").classList.toggle("hidden");
-    }
-    function flip(card) {
-      card.classList.toggle("flipped");
-    }
-  </script>
-
+        // 5. SEND COMMAND
+        document.getElementById('sendBtn').onclick = async () => {
+            const val = document.getElementById('cmdInput').value;
+            if (rxChar && val) {
+                const encoder = new TextEncoder();
+                await rxChar.writeValue(encoder.encode(val + "\n"));
+                document.getElementById('cmdInput').value = "";
+            }
+        };
+    </script>
 </body>
 </html>
